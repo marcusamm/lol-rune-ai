@@ -1,0 +1,16 @@
+{
+  "name": "runeai-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Backend for RuneAI: summoner search, live pre-game scouting, and champion stats. Holds the Riot API key server-side so the desktop app never touches it directly.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
