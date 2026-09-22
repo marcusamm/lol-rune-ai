@@ -8,8 +8,11 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-// Placeholder until we decide where to publish the dataset - see README.
-const DATASET_URL = process.env.RUNEAI_DATASET_URL || null;
+// Published dataset, refreshed periodically by re-running
+// collectMatchups.js and pushing the result to the repo.
+const DATASET_URL =
+  process.env.RUNEAI_DATASET_URL ||
+  'https://raw.githubusercontent.com/marcusamm/lol-rune-ai/main/data/matchups.json';
 
 function cachePath(userDataDir) {
   return path.join(userDataDir, 'matchups.json');
