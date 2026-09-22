@@ -24,6 +24,7 @@ function applyTheme(theme) {
   document.getElementById('setNotifyOnApply').checked = settings.notifyOnApply;
   document.getElementById('setAutoAccept').checked = settings.autoAccept;
   document.getElementById('setAutoItemSet').checked = settings.autoItemSet;
+  document.getElementById('setShowOverlay').checked = settings.showOverlay;
   document.getElementById('setDefaultRegion').value = settings.defaultRegion;
   document.getElementById('setTheme').value = settings.theme;
 
@@ -38,6 +39,10 @@ document.getElementById('setAutoAccept').addEventListener('change', (e) =>
 );
 document.getElementById('setAutoItemSet').addEventListener('change', (e) =>
   window.runeAI.setSetting('autoItemSet', e.target.checked)
+);
+document.getElementById('previewOverlayBtn').addEventListener('click', () => window.runeAI.previewOverlay());
+document.getElementById('setShowOverlay').addEventListener('change', (e) =>
+  window.runeAI.setSetting('showOverlay', e.target.checked)
 );
 
 document.getElementById('setLaunchOnStartup').addEventListener('change', (e) =>
@@ -135,29 +140,86 @@ function itemIcon(itemId) {
   return `<img class="item-icon" src="https://ddragon.leagueoflegends.com/cdn/${v}/img/item/${itemId}.png" alt="Item ${itemId}" onerror="this.style.visibility='hidden'" />`;
 }
 
-// Rune/perk icons come from Community Dragon; Data Dragon's runesReforged
-// only carries paths relative to that CDN.
-let perkIdToIcon = {};
+// Rune metadata: icon + name + which tree each perk belongs to, so the
+// build panel can lay out a real rune page instead of a flat icon strip.
+let perkMeta = {}; // perkId -> { icon, name, treeId }
+let treeMeta = {}; // styleId -> { icon, name }
+
+// Item metadata drives build-path grouping (starting / boots / core).
+let itemMeta = {}; // itemId -> { name, cost, tags, depth }
+
 (async () => {
   try {
-    const trees = await fetch(
-      'https://ddragon.leagueoflegends.com/cdn/14.1.1/data/en_US/runesReforged.json'
-    ).then((r) => r.json());
+    const versions = await fetch('https://ddragon.leagueoflegends.com/api/versions.json').then((r) => r.json());
+    const v = versions[0];
+    const patchEl = document.getElementById('patchValue');
+    if (patchEl) patchEl.textContent = v.split('.').slice(0, 2).join('.');
+
+    const [trees, items] = await Promise.all([
+      fetch(`https://ddragon.leagueoflegends.com/cdn/${v}/data/en_US/runesReforged.json`).then((r) => r.json()),
+      fetch(`https://ddragon.leagueoflegends.com/cdn/${v}/data/en_US/item.json`).then((r) => r.json()),
+    ]);
+
     for (const tree of trees) {
-      perkIdToIcon[tree.id] = tree.icon;
+      treeMeta[tree.id] = { icon: tree.icon, name: tree.name };
       for (const slot of tree.slots) {
-        for (const rune of slot.runes) perkIdToIcon[rune.id] = rune.icon;
+        for (const rune of slot.runes) {
+          perkMeta[rune.id] = { icon: rune.icon, name: rune.name, treeId: tree.id };
+        }
       }
     }
+
+    for (const [id, item] of Object.entries(items.data)) {
+      itemMeta[Number(id)] = {
+        name: item.name,
+        cost: item.gold?.total ?? 0,
+        tags: item.tags || [],
+        depth: item.depth || 1,
+      };
+    }
   } catch (err) {
-    console.error('Failed to load rune data', err);
+    console.error('Failed to load rune/item metadata', err);
   }
 })();
 
-function perkIcon(perkId) {
-  const icon = perkIdToIcon[perkId];
-  if (!icon) return '';
-  return `<img class="perk-icon" src="https://ddragon.leagueoflegends.com/cdn/img/${icon}" alt="Perk ${perkId}" onerror="this.style.visibility='hidden'" />`;
+function perkIcon(perkId, cls = 'perk-icon') {
+  const meta = perkMeta[perkId];
+  if (!meta) return '';
+  return `<img class="${cls}" src="https://ddragon.leagueoflegends.com/cdn/img/${meta.icon}" alt="${meta.name}" title="${meta.name}" onerror="this.style.visibility='hidden'" />`;
+}
+
+function treeIcon(styleId) {
+  const meta = treeMeta[styleId];
+  if (!meta) return '';
+  return `<img src="https://ddragon.leagueoflegends.com/cdn/img/${meta.icon}" alt="${meta.name}" />`;
+}
+
+function treeName(styleId) {
+  return treeMeta[styleId]?.name || '';
+}
+
+// Stat shards aren't in runesReforged, so they get a small static map.
+const SHARD_NAMES = {
+  5001: 'Health', 5002: 'Armour', 5003: 'Magic Resist',
+  5005: 'Attack Speed', 5007: 'Ability Haste', 5008: 'Adaptive Force',
+  5010: 'Move Speed', 5011: 'Health Scaling', 5013: 'Tenacity',
+};
+
+function shardChip(perkId) {
+  const name = SHARD_NAMES[perkId] || 'Shard';
+  const short = name.split(' ').map((w) => w[0]).join('').slice(0, 2);
+  return `<span class="shard" title="${name}">${short}</span>`;
+}
+
+// Groups items into a readable build path using Data Dragon's own tags
+// and gold cost rather than a hand-maintained list.
+function classifyItem(itemId) {
+  const meta = itemMeta[itemId];
+  if (!meta) return 'core';
+  if (meta.tags.includes('Boots')) return 'boots';
+  if (meta.cost > 0 && meta.cost <= 700 && meta.depth <= 1) return 'starting';
+  if (meta.cost >= 2200) return 'core';
+  return 'situational';
 }
 
 // ---------- Auto Runes tab (existing behaviour) ----------
@@ -284,24 +346,28 @@ function renderAnalytics({ tags, teammates, sampleSize }) {
     ? `<div class="tag-row">${tags
         .map(
           (t) =>
-            `<span class="player-tag tone-${t.tone}" title="${t.detail}">${t.label}<span class="tag-detail">${t.detail}</span></span>`
+            `<span class="player-tag tone-${t.tone}"><span class="tag-label">${t.label}</span><span class="tag-detail">${t.detail}</span></span>`
         )
         .join('')}</div>`
-    : `<div class="empty-state" style="padding:10px 0">No notable patterns in the last ${sampleSize} games.</div>`;
+    : `<div class="empty-state" style="padding:14px 0">No notable patterns in the last ${sampleSize} games.</div>`;
 
   const mateHtml = teammates.length
-    ? `<h3 style="margin:14px 0 8px">Frequent teammates</h3>` +
+    ? `<div class="build-label" style="margin-top:16px">Frequent teammates</div>` +
       teammates
         .map(
           (t) =>
-            `<div class="stat-row"><span>${t.name}</span><span class="${t.winRate >= 50 ? 'wr-good' : 'wr-bad'}">${t.games} games &middot; ${t.winRate}%</span></div>`
+            `<div class="role-row" style="grid-template-columns:1fr auto auto">
+               <span class="role-label" style="width:auto">${t.name}</span>
+               <span class="role-games">${t.games}g</span>
+               <span class="${t.winRate >= 50 ? 'wr-good' : 'wr-bad'}">${t.winRate}%</span>
+             </div>`
         )
         .join('')
     : '';
 
   slot.innerHTML = `
-    <div class="player-card">
-      <h3 style="margin-bottom:10px">Playstyle <span style="color:var(--muted-soft);font-weight:400;font-size:11px">last ${sampleSize} games</span></h3>
+    <div class="panel" style="margin-top:14px">
+      <div class="panel-head"><h2>Playstyle</h2><span style="margin-left:auto;font-size:10px;color:var(--text-faint)">last ${sampleSize} games</span></div>
       ${tagsHtml}
       ${mateHtml}
     </div>`;
@@ -380,42 +446,55 @@ function renderSearchResult(data) {
       const teammatesHtml = m.teammates.map((t) => champIconByName(t, 'xs')).join('');
       return `
       <div class="match-row ${m.win ? 'win' : 'loss'}">
-        <div class="left">
-          ${champIconByName(m.championName)}
-          <div class="spell-stack">${spellIconById(m.summoner1Id)}${spellIconById(m.summoner2Id)}</div>
-          <div>
-            <div class="name">${champNameFromKey(m.championName)} <span style="color:var(--muted-soft);font-weight:400">&middot; ${positionLabel(m.position) || '-'}</span></div>
-            <div class="kda">${m.kills}/${m.deaths}/${m.assists} &middot; ${m.cs} CS${m.killParticipation != null ? ` &middot; ${m.killParticipation}% KP` : ''}</div>
-          </div>
+        <span class="match-flag"></span>
+        ${champIconByName(m.championName)}
+        <div class="spell-stack">${spellIconById(m.summoner1Id)}${spellIconById(m.summoner2Id)}</div>
+        <div class="match-body">
+          <div class="match-champ">${champNameFromKey(m.championName)} <span style="color:var(--text-faint);font-weight:500">${positionLabel(m.position) || ''}</span></div>
+          <div class="match-kda">${m.kills}/${m.deaths}/${m.assists} &middot; ${m.cs} CS${m.killParticipation != null ? ` &middot; ${m.killParticipation}% KP` : ''}</div>
         </div>
-        <div class="match-right">
-          <div class="teammates">${teammatesHtml}</div>
-          <div class="match-meta">
-            <span class="result-pill">${m.win ? 'Win' : 'Loss'}</span>
-            <span class="match-time">${formatDuration(m.gameDurationSeconds)} &middot; ${timeAgo(m.gameCreation)}</span>
-          </div>
+        <div class="teammates">${teammatesHtml}</div>
+        <div class="match-meta">
+          <div class="result-pill">${m.win ? 'Win' : 'Loss'}</div>
+          <div class="match-time">${formatDuration(m.gameDurationSeconds)} &middot; ${timeAgo(m.gameCreation)}</div>
         </div>
       </div>`;
     })
     .join('');
 
+  const soloLine = solo
+    ? `<div class="rank-tier-big ${tierClass(solo.tier)}">${solo.tier} ${solo.rank}</div>
+       <div class="rank-detail">${solo.leaguePoints} LP &middot; ${solo.wins}W ${solo.losses}L &middot; ${Math.round((solo.wins / (solo.wins + solo.losses)) * 100)}% win rate</div>`
+    : `<div class="rank-tier-big">Unranked</div><div class="rank-detail">No solo queue games this season</div>`;
+
   searchResult.innerHTML = `
-    <div class="player-card">
-      <div class="profile-head">
-        ${rankEmblem(solo?.tier)}
-        <div>
-          <h3>${data.riotId}</h3>
-          <div class="sub">Level ${data.summonerLevel}</div>
+    <div class="profile-layout">
+      <div>
+        <div class="profile-hero">
+          <div class="profile-hero-top">
+            ${rankEmblem(solo?.tier)}
+            <div>
+              <div class="profile-name">${data.riotId.split('#')[0]}</div>
+              <div class="profile-level">#${data.riotId.split('#')[1]} &middot; Level ${data.summonerLevel}</div>
+            </div>
+          </div>
+          <div class="rank-line">${soloLine}</div>
+          ${masteryHtml ? `<div class="mastery-row">${masteryHtml}</div>` : ''}
         </div>
+
+        <div id="analyticsSlot"></div>
+
+        ${
+          roleHtml
+            ? `<div class="panel" style="margin-top:14px"><div class="panel-head"><h2>Position breakdown</h2></div>${roleHtml}</div>`
+            : ''
+        }
       </div>
-      ${rankHtml}
-      ${masteryHtml ? `<div class="mastery-row">${masteryHtml}</div>` : ''}
-    </div>
-    <div id="analyticsSlot"></div>
-    ${roleHtml ? `<div class="player-card"><h3 style="margin-bottom:10px">Positions</h3>${roleHtml}</div>` : ''}
-    <div class="player-card">
-      <h3 style="margin-bottom:8px">Recent Matches</h3>
-      ${matchesHtml || '<div class="empty-state">No recent ranked matches</div>'}
+
+      <div class="panel">
+        <div class="panel-head"><h2>Recent matches</h2></div>
+        ${matchesHtml || '<div class="empty-state">No recent ranked matches</div>'}
+      </div>
     </div>
   `;
 }
@@ -460,32 +539,45 @@ function renderScoutResult(data) {
 
   const teamHtml = Object.entries(teams)
     .map(([teamId, players], idx) => {
+      const isBlue = idx === 0;
       const rows = players
-        .map((p) => {
-          const rankText = p.rank
-            ? `<span class="rank-tier ${tierClass(p.rank.tier)}">${p.rank.tier} ${p.rank.rank}</span> ${p.rank.winRate}% WR (${p.rank.games})`
-            : 'Unranked';
-          return `
+        .map(
+          (p) => `
             <div class="scout-player">
-              <div class="left">
-                ${champIconById(p.championId)}
-                <div class="spell-stack">${spellIconById(p.spell1Id)}${spellIconById(p.spell2Id)}</div>
-                <span class="who">${champName(p.championId)} &middot; ${p.riotId || 'Unknown'}</span>
+              ${champIconById(p.championId)}
+              <div class="spell-stack">${spellIconById(p.spell1Id)}${spellIconById(p.spell2Id)}</div>
+              <div class="scout-who">
+                <div class="scout-champ">${champName(p.championId)}</div>
+                <div class="scout-id">${p.riotId || 'Unknown'}</div>
               </div>
-              <span class="rank">${rankText}</span>
-            </div>`;
-        })
+              <div class="scout-rank">
+                ${
+                  p.rank
+                    ? `<div class="scout-rank-tier ${tierClass(p.rank.tier)}">${p.rank.tier} ${p.rank.rank}</div>
+                       <div class="scout-rank-sub">${p.rank.winRate}% &middot; ${p.rank.games}g</div>`
+                    : `<div class="scout-rank-sub">Unranked</div>`
+                }
+              </div>
+            </div>`
+        )
         .join('');
-      return `<div class="scout-team"><h4>Team ${idx + 1}</h4>${rows}</div>`;
+      return `
+        <div>
+          <div class="scout-team-head ${isBlue ? 'team-blue' : 'team-red'}">
+            <span class="dot" style="background:currentColor;box-shadow:none"></span>
+            ${isBlue ? 'Blue side' : 'Red side'}
+          </div>
+          ${rows}
+        </div>`;
     })
     .join('');
 
   scoutResult.innerHTML = `
-    <div class="player-card">
-      <h3>${data.queue}</h3>
-      <div class="sub">${Math.floor(data.gameLengthSeconds / 60)}m ${data.gameLengthSeconds % 60}s elapsed</div>
+    <div class="panel accent-panel" style="margin-bottom:16px">
+      <div class="panel-head"><h2>${data.queue}</h2><span class="live-pip">LIVE</span></div>
+      <div class="stat-line">${Math.floor(data.gameLengthSeconds / 60)}m ${data.gameLengthSeconds % 60}s elapsed &middot; ${data.participants.length} players</div>
     </div>
-    ${teamHtml}
+    <div class="scout-teams">${teamHtml}</div>
   `;
 }
 
@@ -517,17 +609,15 @@ function renderChampionList(list) {
     .map((c) => {
       const wrClass = c.winRate >= 52 ? 'wr-good' : c.winRate <= 48 ? 'wr-bad' : 'wr-mid';
       return `
-        <div class="champion-row" data-champion="${c.champion}">
-          <div class="left">
-            ${champIconByName(c.champion)}
-            <div>
-              <div class="name">${champNameFromKey(c.champion)}</div>
-              <div class="roles">${c.roles.join(' / ')}</div>
-            </div>
+        <div class="champ-card" data-champion="${c.champion}">
+          ${champIconByName(c.champion, 'md')}
+          <div class="champ-card-body">
+            <div class="champ-card-name">${champNameFromKey(c.champion)}</div>
+            <div class="champ-card-roles">${c.roles.slice(0, 3).map(positionLabel).join(' · ')}</div>
           </div>
-          <div class="stats">
-            <span class="${wrClass}">${c.winRate}% WR</span>
-            <span class="games">${c.games} games</span>
+          <div class="champ-card-stats">
+            <div class="champ-card-wr ${wrClass}">${c.winRate}%</div>
+            <div class="champ-card-games">${c.games} games</div>
           </div>
         </div>`;
     })
@@ -545,13 +635,12 @@ loadChampionStats();
 const championDetail = document.getElementById('championDetail');
 
 championList.addEventListener('click', (e) => {
-  const row = e.target.closest('.champion-row');
+  const row = e.target.closest('.champ-card');
   if (row && row.dataset.champion) openChampionDetail(row.dataset.champion);
 });
 
 async function openChampionDetail(champion, position) {
-  championList.hidden = true;
-  championFilter.parentElement.hidden = true;
+  document.getElementById('championBrowse').hidden = true;
   championDetail.hidden = false;
   championDetail.innerHTML = `<div class="empty-state">Loading ${champNameFromKey(champion)}...</div>`;
 
@@ -566,78 +655,186 @@ async function openChampionDetail(champion, position) {
 
 function closeChampionDetail() {
   championDetail.hidden = true;
-  championList.hidden = false;
-  championFilter.parentElement.hidden = false;
+  document.getElementById('championBrowse').hidden = false;
+}
+
+function tierBadge(winRate, games) {
+  if (games < 8) return { label: 'Unrated', cls: '' };
+  if (winRate >= 54) return { label: 'S Tier', cls: 'tier' };
+  if (winRate >= 51) return { label: 'A Tier', cls: 'tier' };
+  if (winRate >= 48.5) return { label: 'B Tier', cls: '' };
+  return { label: 'C Tier', cls: '' };
 }
 
 function renderChampionDetail(d) {
+  const roleStats = d.byRole.find((r) => r.role === d.position) || d.byRole[0];
+  const tier = tierBadge(roleStats?.winRate ?? 0, roleStats?.games ?? 0);
+  const splash = `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${d.champion}_0.png`;
+
   const roleTabs = d.byRole
     .map(
       (r) =>
-        `<button class="role-tab ${r.role === d.position ? 'active' : ''}" data-role="${r.role}">${positionLabel(r.role)} <span class="role-tab-sub">${r.games}g</span></button>`
+        `<button class="role-tab ${r.role === d.position ? 'active' : ''}" data-role="${r.role}">${positionLabel(r.role)} <span class="role-tab-sub">${r.games}</span></button>`
     )
     .join('');
 
+  // ---- Rune page: primary tree (keystone + 3), secondary (2), shards (3)
   const page = d.bestPage;
-  const runesHtml = page
-    ? `<div class="rune-strip">${page.selectedPerkIds.map(perkIcon).join('')}</div>
-       <div class="sub">${(page.winRate * 100).toFixed(1)}% win rate over ${page.games} games</div>`
-    : `<div class="empty-state" style="padding:10px 0">Not enough rune data yet.</div>`;
+  let runesHtml = `<div class="empty-state" style="padding:18px 0">Not enough rune data yet.</div>`;
+  if (page) {
+    const ids = page.selectedPerkIds;
+    const [keystone, p2, p3, p4, s1, s2, sh1, sh2, sh3] = ids;
+    runesHtml = `
+      <div class="rune-page">
+        <div>
+          <div class="rune-tree-label">${treeIcon(page.primaryStyleId)}${treeName(page.primaryStyleId)}</div>
+          <div class="keystone-row">
+            <div class="keystone">${perkIcon(keystone, '')}</div>
+            <div>
+              <div class="keystone-name">${perkMeta[keystone]?.name || 'Keystone'}</div>
+              <div class="keystone-sub">${(page.winRate * 100).toFixed(1)}% win rate &middot; ${page.games} games</div>
+            </div>
+          </div>
+          <div class="rune-row">
+            ${[p2, p3, p4].map((id) => `<span class="rune-slot" title="${perkMeta[id]?.name || ''}">${perkIcon(id, '')}</span>`).join('')}
+          </div>
+        </div>
 
-  const itemsHtml = d.items.length
-    ? `<div class="item-strip">${d.items
-        .map(
-          (i) =>
-            `<div class="item-chip" title="${i.winRate}% WR over ${i.games} games">${itemIcon(i.itemId)}<span class="${i.winRate >= 52 ? 'wr-good' : i.winRate <= 48 ? 'wr-bad' : 'wr-mid'}">${i.winRate}%</span></div>`
-        )
-        .join('')}</div>`
-    : `<div class="empty-state" style="padding:10px 0">Not enough item data yet.</div>`;
+        <div class="rune-divider"></div>
+
+        <div>
+          <div class="rune-tree-label">${treeIcon(page.subStyleId)}${treeName(page.subStyleId)}</div>
+          <div class="rune-row">
+            ${[s1, s2].map((id) => `<span class="rune-slot" title="${perkMeta[id]?.name || ''}">${perkIcon(id, '')}</span>`).join('')}
+          </div>
+        </div>
+
+        <div>
+          <div class="build-label">Shards</div>
+          <div class="shard-row">${[sh1, sh2, sh3].map(shardChip).join('')}</div>
+        </div>
+      </div>`;
+  }
+
+  // ---- Items grouped into an actual build path
+  const groups = { starting: [], boots: [], core: [], situational: [] };
+  for (const item of d.items) groups[classifyItem(item.itemId)].push(item);
+
+  const buildBlock = (label, list, arrows) => {
+    if (!list.length) return '';
+    const inner = list
+      .map(
+        (i) => `
+        <div class="build-item" title="${itemMeta[i.itemId]?.name || ''} — ${i.winRate}% over ${i.games} games">
+          ${itemIcon(i.itemId)}
+          <span class="build-item-wr ${i.winRate >= 52 ? 'wr-good' : i.winRate <= 48 ? 'wr-bad' : 'wr-mid'}">${i.winRate}%</span>
+        </div>`
+      )
+      .join(arrows ? '<span class="build-arrow">›</span>' : '');
+    return `<div class="build-section"><div class="build-label">${label}</div><div class="build-path">${inner}</div></div>`;
+  };
+
+  const itemsHtml =
+    d.items.length === 0
+      ? `<div class="empty-state" style="padding:18px 0">Not enough item data yet.</div>`
+      : buildBlock('Starting', groups.starting, false) +
+        buildBlock('Core build', groups.core, true) +
+        buildBlock('Boots', groups.boots, false) +
+        buildBlock('Situational', groups.situational, false);
 
   const spellsHtml = d.spells.length
-    ? d.spells
-        .map(
-          (s) =>
-            `<div class="stat-row"><span class="left">${s.spellIds.map(spellIconById).join('')}</span><span>${s.winRate}% &middot; ${s.games} games</span></div>`
-        )
-        .join('')
+    ? `<div class="build-section"><div class="build-label">Summoner spells</div>
+        ${d.spells
+          .map(
+            (s) => `<div class="matchup-row" style="grid-template-columns:auto 1fr 64px">
+              <span class="spell-stack" style="flex-direction:row;gap:4px">${s.spellIds.map(spellIconById).join('')}</span>
+              <span class="mu-name">${s.spellIds.map((id) => spellIdToImage[id]?.name || '').filter(Boolean).join(' + ')}</span>
+              <span class="mu-stats"><span class="mu-wr ${s.winRate >= 52 ? 'wr-good' : 'wr-mid'}">${s.winRate}%</span><span class="mu-games">${s.games} games</span></span>
+            </div>`
+          )
+          .join('')}
+      </div>`
     : '';
 
-  const matchupRow = (m, good) =>
-    `<div class="stat-row"><span class="left">${champIconByName(m.opponent, 'xs')} ${champNameFromKey(m.opponent)}</span><span class="${good ? 'wr-good' : 'wr-bad'}">${m.winRate}% &middot; ${m.games}g</span></div>`;
+  const matchupRow = (m, good) => `
+    <div class="matchup-row">
+      ${champIconByName(m.opponent, 'xs')}
+      <div>
+        <div class="mu-name">${champNameFromKey(m.opponent)}</div>
+        <div class="mu-bar-track"><div class="mu-bar-fill ${good ? 'good' : 'bad'}" style="width:${Math.max(4, Math.min(100, m.winRate))}%"></div></div>
+      </div>
+      <div class="mu-stats">
+        <div class="mu-wr ${good ? 'wr-good' : 'wr-bad'}">${m.winRate}%</div>
+        <div class="mu-games">${m.games} games</div>
+      </div>
+    </div>`;
+
+  const noMatchups = `<div class="empty-state" style="padding:14px 0">Not enough matchup data yet.</div>`;
 
   championDetail.innerHTML = `
-    <button id="champBackBtn" class="back-btn">&larr; All champions</button>
-    <div class="player-card">
-      <div class="profile-head">
-        ${champIconByName(d.champion, 'md')}
-        <div>
-          <h3>${champNameFromKey(d.champion)}</h3>
-          <div class="sub">${d.pickRate != null ? `${d.pickRate}% pick rate in dataset` : ''}</div>
+    <button id="champBackBtn" class="back-btn">‹ All champions</button>
+
+    <div class="champ-hero">
+      <div class="hero-art" style="background-image:url('${splash}')"></div>
+      <div class="hero-scrim"></div>
+      <div class="hero-inner">
+        <div class="hero-top">
+          ${champIconByName(d.champion, 'lg')}
+          <div>
+            <div class="hero-name">${champNameFromKey(d.champion)}</div>
+            <div class="hero-meta">
+              <span class="hero-chip">${positionLabel(d.position)}</span>
+              <span class="hero-chip ${tier.cls}">${tier.label}</span>
+              <span class="hero-chip">${d.matchesInDataset.toLocaleString()} matches analysed</span>
+            </div>
+          </div>
+          <div style="margin-left:auto"><div class="role-tabs">${roleTabs}</div></div>
+        </div>
+
+        <div class="stat-strip">
+          <div class="stat-cell">
+            <div class="stat-key">Win rate</div>
+            <div class="stat-val ${roleStats?.winRate >= 52 ? 'wr-good' : roleStats?.winRate <= 48 ? 'wr-bad' : ''}">${roleStats?.winRate ?? '—'}%</div>
+            <div class="stat-note">this role</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-key">Pick rate</div>
+            <div class="stat-val">${d.pickRate ?? '—'}%</div>
+            <div class="stat-note">of analysed games</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-key">Games</div>
+            <div class="stat-val">${roleStats?.games ?? 0}</div>
+            <div class="stat-note">in sample</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-key">Roles</div>
+            <div class="stat-val">${d.byRole.length}</div>
+            <div class="stat-note">${d.byRole.map((r) => positionLabel(r.role)).join(' · ')}</div>
+          </div>
         </div>
       </div>
-      <div class="role-tabs">${roleTabs}</div>
     </div>
 
-    <div class="player-card">
-      <h3 style="margin-bottom:10px">Best runes</h3>
-      ${runesHtml}
-    </div>
+    <div class="detail-grid">
+      <div class="panel accent-panel">
+        <div class="panel-head"><h2>Recommended runes</h2></div>
+        ${runesHtml}
+      </div>
 
-    <div class="player-card">
-      <h3 style="margin-bottom:10px">Most successful items</h3>
-      ${itemsHtml}
-    </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Build path</h2></div>
+        ${itemsHtml}
+        ${spellsHtml}
+      </div>
 
-    ${spellsHtml ? `<div class="player-card"><h3 style="margin-bottom:10px">Summoner spells</h3>${spellsHtml}</div>` : ''}
-
-    <div class="player-card">
-      <h3 style="margin-bottom:10px">Strong against</h3>
-      ${d.strongAgainst.length ? d.strongAgainst.map((m) => matchupRow(m, true)).join('') : '<div class="empty-state" style="padding:10px 0">Not enough matchup data yet.</div>'}
-    </div>
-
-    <div class="player-card">
-      <h3 style="margin-bottom:10px">Struggles against</h3>
-      ${d.weakAgainst.length ? d.weakAgainst.map((m) => matchupRow(m, false)).join('') : '<div class="empty-state" style="padding:10px 0">Not enough matchup data yet.</div>'}
+      <div class="panel">
+        <div class="panel-head"><h2>Matchups</h2></div>
+        <div class="build-label" style="color:var(--teal)">Strong against</div>
+        ${d.strongAgainst.length ? d.strongAgainst.map((m) => matchupRow(m, true)).join('') : noMatchups}
+        <div class="build-label" style="color:var(--red);margin-top:16px">Struggles against</div>
+        ${d.weakAgainst.length ? d.weakAgainst.map((m) => matchupRow(m, false)).join('') : noMatchups}
+      </div>
     </div>
   `;
 
@@ -673,4 +870,40 @@ rankLoadBtn.addEventListener('click', async () => {
   } catch (err) {
     rankingsList.innerHTML = `<div class="empty-state">${err.message}</div>`;
   }
+});
+
+// ---------- Global search (top bar) ----------
+// Routes to the right tab based on what was typed: a Riot ID (Name#TAG)
+// opens the player profile, anything else is treated as a champion.
+const globalSearch = document.getElementById('globalSearch');
+
+function switchTab(tab) {
+  document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+}
+
+globalSearch?.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const q = globalSearch.value.trim();
+  if (!q) return;
+
+  if (q.includes('#')) {
+    switchTab('search');
+    searchInput.value = q;
+    runSearch();
+  } else {
+    const match = allChampionStats.find(
+      (c) =>
+        c.champion.toLowerCase() === q.toLowerCase() ||
+        champNameFromKey(c.champion).toLowerCase() === q.toLowerCase()
+    );
+    switchTab('champions');
+    if (match) openChampionDetail(match.champion);
+    else {
+      championFilter.value = q;
+      championFilter.dispatchEvent(new Event('input'));
+    }
+  }
+  globalSearch.value = '';
 });

@@ -13,6 +13,10 @@ app.use((req, res, next) => {
   next();
 });
 
+// Serves the renderer over HTTP purely so the UI can be opened in a
+// normal browser for visual checks; the packaged app loads it from disk.
+app.use('/ui', express.static(require('path').join(__dirname, '..', 'electron', 'renderer')));
+
 app.get('/', (_req, res) => res.json({ status: 'ok', service: 'runeai-backend' }));
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 

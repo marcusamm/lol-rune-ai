@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>RuneAI — UI preview</title>
+<script>
+// Browser-only stub for the Electron preload bridge, so the interface can
+// be opened in a normal browser for visual review. The real app supplies
+// these through electron/preload.js.
+window.runeAI = {
+  backendUrl: location.origin,
+  onStatus: () => {}, onDatasetLoaded: () => {}, onClientStatus: () => {},
+  onChampSelectStatus: () => {}, onRecommendation: () => {}, onApplied: () => {},
+  onItemSetApplied: () => {}, onWatcherError: () => {}, onFatalError: () => {},
+  setAutoApply: () => {}, refreshDataset: () => {}, previewOverlay: () => {},
+  getSettings: async () => ({
+    launchOnStartup: false, minimizeToTray: true, defaultRegion: 'euw1',
+    theme: 'hextech', notifyOnApply: true, autoAccept: false,
+    autoItemSet: true, showOverlay: true,
+  }),
+  setSetting: async () => {},
+};
+</script>
+</head>
+<body>
+<script>
+  // Load the real interface into this document.
+  fetch('index.html')
+    .then((r) => r.text())
+    .then((html) => {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      document.head.insertAdjacentHTML('beforeend', doc.head.innerHTML);
+      document.body.innerHTML = doc.body.innerHTML;
+      const s = document.createElement('script');
+      s.src = 'renderer.js';
+      document.body.appendChild(s);
+    });
+</script>
+</body>
+</html>

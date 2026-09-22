@@ -12,6 +12,7 @@ const DEFAULTS = {
   notifyOnApply: true,
   autoAccept: false,
   autoItemSet: true,
+  showOverlay: true,
 };
 
 function filePath(userDataDir) {

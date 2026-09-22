@@ -2,8 +2,10 @@ const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, Notification } = r
 const path = require('path');
 const { fork } = require('child_process');
 const { MatchupWatcher } = require('../src/watcher');
+const { LiveGameWatcher } = require('../src/liveGameWatcher');
 const { loadEnv } = require('../src/env');
 const { loadSettings, saveSettings } = require('./settingsStore');
+const { createOverlay, destroyOverlay, sendToOverlay, isOpen } = require('./overlay');
 
 loadEnv(); // pulls RIOT_API_KEY from repo-root .env for the backend child process
 
@@ -12,6 +14,7 @@ let tray = null;
 let watcher = null;
 let backendProcess = null;
 let settings = null;
+let liveWatcher = null;
 
 function applyStartupSetting() {
   app.setLoginItemSettings({ openAtLogin: settings.launchOnStartup });
@@ -124,6 +127,33 @@ function startWatcher() {
   watcher.start().catch((err) => send('fatal-error', err.message));
 }
 
+function startLiveWatcher() {
+  liveWatcher = new LiveGameWatcher();
+
+  // The overlay only exists while a game is running, so it never sits on
+  // top of the client or the desktop between matches.
+  liveWatcher.on('game-started', () => {
+    if (settings.showOverlay) createOverlay();
+    send('status', 'Game detected - build overlay active.');
+  });
+  liveWatcher.on('game-ended', () => {
+    destroyOverlay();
+    send('status', 'Game ended - overlay closed.');
+  });
+  liveWatcher.on('update', (payload) => {
+    if (payload.inGame && settings.showOverlay && !isOpen()) createOverlay();
+    sendToOverlay('overlay-update', payload);
+    send('live-game-update', payload);
+  });
+  liveWatcher.on('error', (err) => send('watcher-error', `Live game: ${err.message}`));
+
+  // Share the champ-select watcher's dataset once it's loaded.
+  watcher.on('dataset-loaded', () => liveWatcher.setDataset(watcher.dataset));
+  if (watcher.dataset) liveWatcher.setDataset(watcher.dataset);
+
+  liveWatcher.start().catch((err) => send('watcher-error', `Live game: ${err.message}`));
+}
+
 ipcMain.handle('set-auto-apply', (_event, value) => {
   if (watcher) watcher.setAutoApply(value);
 });
@@ -134,12 +164,63 @@ ipcMain.handle('refresh-dataset', async () => {
 
 ipcMain.handle('get-settings', () => settings);
 
+// Lets you see and position the overlay without waiting for a live game.
+ipcMain.handle('preview-overlay', async () => {
+  createOverlay();
+  const sample = liveWatcher?.dataset
+    ? buildPreviewPayload(liveWatcher.dataset, liveWatcher.itemMeta, liveWatcher.ddragonVersion)
+    : { inGame: true, championName: 'Preview', currentGold: 3000, buyNow: [], nextGoals: [] };
+  setTimeout(() => sendToOverlay('overlay-update', sample), 400);
+});
+
+// Picks a champion that actually has item data so the preview shows
+// something representative rather than an empty panel.
+function buildPreviewPayload(dataset, itemMeta, version) {
+  const { recommendNextItems } = require('../src/liveAdvisor');
+  const key = Object.keys(dataset.items || {}).find(
+    (k) => Object.keys(dataset.items[k]).length > 5
+  );
+  if (!key) return { inGame: true, championName: 'Preview', currentGold: 3000, buyNow: [], nextGoals: [] };
+
+  const [championName, position] = key.split('|');
+  const advice = recommendNextItems({
+    dataset,
+    championName,
+    position,
+    ownedItemIds: [],
+    currentGold: 3000,
+    allPlayers: [
+      { championName: 'Ahri', team: 'CHAOS' },
+      { championName: 'Lux', team: 'CHAOS' },
+      { championName: 'Darius', team: 'CHAOS' },
+      { championName: 'Garen', team: 'ORDER' },
+    ],
+    myTeam: 'ORDER',
+    itemMeta,
+  });
+
+  const stamp = (list) => list.map((i) => ({ ...i, ddragonVersion: version }));
+  return {
+    inGame: true,
+    championName,
+    position,
+    currentGold: 3000,
+    enemyProfile: advice.enemyProfile,
+    buyNow: stamp(advice.buyNow),
+    nextGoals: stamp(advice.nextGoals),
+  };
+}
+
 ipcMain.handle('set-setting', (_event, key, value) => {
   settings[key] = value;
   saveSettings(app.getPath('userData'), settings);
   if (key === 'launchOnStartup') applyStartupSetting();
   if (key === 'autoAccept' && watcher) watcher.setAutoAccept(value);
   if (key === 'autoItemSet' && watcher) watcher.setAutoItemSet(value);
+  if (key === 'showOverlay') {
+    if (!value) destroyOverlay();
+    else if (liveWatcher?.wasInGame) createOverlay();
+  }
   return settings;
 });
 
@@ -150,6 +231,7 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   startWatcher();
+  startLiveWatcher();
 });
 
 app.on('window-all-closed', () => {
@@ -158,5 +240,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   app.isQuitting = true;
+  if (liveWatcher) liveWatcher.stop();
+  destroyOverlay();
   if (backendProcess) backendProcess.kill();
 });

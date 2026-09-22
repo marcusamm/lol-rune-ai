@@ -5,254 +5,301 @@
 <title>RuneAI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="splash-bg" id="splashBg"></div>
-  <div class="splash-overlay"></div>
+  <div class="ambient" aria-hidden="true">
+    <div class="splash-bg" id="splashBg"></div>
+    <div class="splash-overlay"></div>
+    <div class="grid-texture"></div>
+  </div>
+
   <div class="app-shell">
+    <!-- ============ TOP BAR ============ -->
+    <header class="topbar">
+      <div class="topbar-brand">
+        <div class="brand-mark">R</div>
+        <div class="brand-text">
+          <span class="brand-name">RuneAI</span>
+          <span class="brand-tag">Match Intelligence</span>
+        </div>
+      </div>
+
+      <div class="topbar-search">
+        <svg class="ts-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="6"/><line x1="17" y1="17" x2="13.5" y2="13.5"/></svg>
+        <input type="text" id="globalSearch" placeholder="Search summoner or champion…" />
+        <kbd>Enter</kbd>
+      </div>
+
+      <div class="topbar-meta">
+        <div class="meta-chip">
+          <span class="meta-label">Patch</span>
+          <span class="meta-value" id="patchValue">—</span>
+        </div>
+        <div class="meta-chip">
+          <span class="meta-label">Queue</span>
+          <span class="meta-value">Solo/Duo</span>
+        </div>
+        <div class="meta-chip status-chip">
+          <span class="dot" id="clientDot"></span>
+          <span class="meta-value" id="clientText">Checking…</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============ SIDEBAR ============ -->
     <nav class="sidebar">
-      <div class="brand-mark" title="RuneAI">R</div>
-      <button class="nav-btn active" data-tab="runes" title="Auto Runes">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 2l7 3v5c0 4.5-3 7.5-7 8-4-.5-7-3.5-7-8V5l7-3z"/></svg>
-      </button>
-      <button class="nav-btn" data-tab="search" title="Search">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="6"/><line x1="17" y1="17" x2="13.5" y2="13.5"/></svg>
-      </button>
-      <button class="nav-btn" data-tab="scout" title="Live Scout">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="10" cy="10" r="2.5"/></svg>
-      </button>
-      <button class="nav-btn" data-tab="champions" title="Champions">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="12" y="2" width="6" height="6" rx="1"/><rect x="2" y="12" width="6" height="6" rx="1"/><rect x="12" y="12" width="6" height="6" rx="1"/></svg>
-      </button>
-      <button class="nav-btn" data-tab="rankings" title="Rankings">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 17V9M10 17V4M14 17v-5"/><path d="M2 17.5h16"/></svg>
-      </button>
+      <div class="nav-group">
+        <span class="nav-group-label">Live</span>
+        <button class="nav-btn active" data-tab="runes">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 2l7 3v5c0 4.5-3 7.5-7 8-4-.5-7-3.5-7-8V5l7-3z"/></svg>
+          <span>Auto Runes</span>
+        </button>
+        <button class="nav-btn" data-tab="scout">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="10" cy="10" r="2.5"/></svg>
+          <span>Live Game</span>
+        </button>
+      </div>
+
+      <div class="nav-group">
+        <span class="nav-group-label">Explore</span>
+        <button class="nav-btn" data-tab="champions">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="12" y="2" width="6" height="6" rx="1.5"/><rect x="2" y="12" width="6" height="6" rx="1.5"/><rect x="12" y="12" width="6" height="6" rx="1.5"/></svg>
+          <span>Champions</span>
+        </button>
+        <button class="nav-btn" data-tab="search">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="6.5" r="3.5"/><path d="M3.5 17c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/></svg>
+          <span>Players</span>
+        </button>
+        <button class="nav-btn" data-tab="rankings">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 17V9M10 17V4M14 17v-5"/><path d="M2 17.5h16"/></svg>
+          <span>Leaderboard</span>
+        </button>
+      </div>
+
       <div class="nav-spacer"></div>
-      <span class="dot" id="clientDot" title="League client connection"></span>
-      <button class="nav-btn" data-tab="settings" title="Settings">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="2.5"/><path d="M10 1.5v2M10 16.5v2M18.5 10h-2M3.5 10h-2M15.6 4.4l-1.4 1.4M5.8 14.2l-1.4 1.4M15.6 15.6l-1.4-1.4M5.8 5.8L4.4 4.4"/></svg>
-      </button>
+
+      <div class="nav-group">
+        <button class="nav-btn" data-tab="settings">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="10" r="2.6"/><path d="M10 1.5v2M10 16.5v2M18.5 10h-2M3.5 10h-2M15.6 4.4l-1.4 1.4M5.8 14.2l-1.4 1.4M15.6 15.6l-1.4-1.4M5.8 5.8L4.4 4.4"/></svg>
+          <span>Settings</span>
+        </button>
+      </div>
     </nav>
 
-    <main>
-      <!-- Auto Runes tab -->
+    <!-- ============ MAIN ============ -->
+    <main class="content">
+
+      <!-- ---------- AUTO RUNES ---------- -->
       <section class="tab-panel active" id="tab-runes">
-        <div class="content-header">
-          <h1>Auto Runes</h1>
-          <p class="content-sub">Watches champ select and applies the best rune page for your matchup.</p>
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Auto Runes</h1>
+            <p class="page-sub">Reads champ select and applies the strongest page for your matchup.</p>
+          </div>
+          <label class="toggle-pill">
+            <input type="checkbox" id="autoApplyToggle" checked />
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            <span class="toggle-text">Auto-apply</span>
+          </label>
         </div>
 
-        <section class="card" id="statusCard">
-          <div class="row">
-            <span class="label">Client</span>
-            <span id="clientText">Checking...</span>
+        <div class="runes-grid">
+          <div class="panel span-2" id="champSelectCard" hidden>
+            <div class="panel-head"><h2>Champ Select</h2><span class="live-pip">LIVE</span></div>
+            <div class="cs-body">
+              <div class="cs-side">
+                <span class="cs-label">You</span>
+                <span class="cs-value" id="youText">—</span>
+              </div>
+              <div class="cs-vs">VS</div>
+              <div class="cs-side cs-enemy">
+                <span class="cs-label">Enemy team</span>
+                <span class="cs-value" id="enemiesText">—</span>
+              </div>
+            </div>
+            <div class="cs-phase">Phase <strong id="phaseText">—</strong></div>
           </div>
-          <div class="row">
-            <span class="label">Dataset</span>
-            <span id="datasetText">Loading...</span>
-            <button id="refreshBtn">Refresh</button>
+
+          <div class="panel accent-panel" id="recommendationCard" hidden>
+            <div class="panel-head"><h2>Recommendation</h2></div>
+            <p class="rec-text" id="recText"></p>
+            <p class="applied" id="appliedText" hidden>Runes applied</p>
           </div>
-          <div class="row">
-            <label class="switch">
-              <input type="checkbox" id="autoApplyToggle" checked />
-              <span>Auto-apply runes</span>
-            </label>
+
+          <div class="panel">
+            <div class="panel-head"><h2>Dataset</h2>
+              <button id="refreshBtn" class="btn-ghost">Refresh</button>
+            </div>
+            <div class="stat-line"><span id="datasetText">Loading…</span></div>
           </div>
-        </section>
 
-        <section class="card" id="champSelectCard" hidden>
-          <h2>Champ Select</h2>
-          <div class="row"><span class="label">You</span><span id="youText">-</span></div>
-          <div class="row"><span class="label">Enemies</span><span id="enemiesText">-</span></div>
-          <div class="row"><span class="label">Phase</span><span id="phaseText">-</span></div>
-        </section>
-
-        <section class="card" id="recommendationCard" hidden>
-          <h2>Recommendation</h2>
-          <p id="recText"></p>
-          <p class="applied" id="appliedText" hidden>Runes applied ✓</p>
-        </section>
-
-        <section class="log">
-          <h2>Log</h2>
-          <div id="logList"></div>
-        </section>
+          <div class="panel span-3 log-panel">
+            <div class="panel-head"><h2>Activity</h2></div>
+            <div id="logList" class="log-list"></div>
+          </div>
+        </div>
       </section>
 
-      <!-- Search tab -->
+      <!-- ---------- PLAYERS ---------- -->
       <section class="tab-panel" id="tab-search">
-        <div class="content-header">
-          <h1>Search</h1>
-          <p class="content-sub">Look up any player's rank and recent matches.</p>
-        </div>
-        <div class="search-row">
-          <input type="text" id="searchInput" placeholder="Riot ID (e.g. Ammitz#Maar)" />
-          <select id="searchPlatform">
-            <option value="euw1">EUW</option>
-            <option value="eun1">EUNE</option>
-            <option value="na1">NA</option>
-            <option value="kr">KR</option>
-            <option value="jp1">JP</option>
-            <option value="br1">BR</option>
-            <option value="la1">LAN</option>
-            <option value="la2">LAS</option>
-            <option value="oc1">OCE</option>
-            <option value="tr1">TR</option>
-            <option value="ru">RU</option>
-          </select>
-          <button id="searchBtn">Search</button>
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Players</h1>
+            <p class="page-sub">Rank, playstyle and recent form for any summoner.</p>
+          </div>
+          <div class="inline-form">
+            <input type="text" id="searchInput" placeholder="Riot ID (e.g. Ammitz#Maar)" />
+            <select id="searchPlatform">
+              <option value="euw1">EUW</option><option value="eun1">EUNE</option>
+              <option value="na1">NA</option><option value="kr">KR</option>
+              <option value="jp1">JP</option><option value="br1">BR</option>
+              <option value="la1">LAN</option><option value="la2">LAS</option>
+              <option value="oc1">OCE</option><option value="tr1">TR</option>
+              <option value="ru">RU</option>
+            </select>
+            <button id="searchBtn" class="btn-primary">Search</button>
+          </div>
         </div>
         <div id="searchResult"></div>
       </section>
 
-      <!-- Live Scout tab -->
+      <!-- ---------- LIVE GAME ---------- -->
       <section class="tab-panel" id="tab-scout">
-        <div class="content-header">
-          <h1>Live Scout</h1>
-          <p class="content-sub">See both teams' rank and champions once a player is in a live game.</p>
-        </div>
-        <div class="search-row">
-          <input type="text" id="scoutInput" placeholder="Riot ID (e.g. Ammitz#Maar)" />
-          <select id="scoutPlatform">
-            <option value="euw1">EUW</option>
-            <option value="eun1">EUNE</option>
-            <option value="na1">NA</option>
-            <option value="kr">KR</option>
-            <option value="jp1">JP</option>
-            <option value="br1">BR</option>
-            <option value="la1">LAN</option>
-            <option value="la2">LAS</option>
-            <option value="oc1">OCE</option>
-            <option value="tr1">TR</option>
-            <option value="ru">RU</option>
-          </select>
-          <button id="scoutBtn">Scout</button>
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Live Game</h1>
+            <p class="page-sub">Scout both teams the moment a game is underway.</p>
+          </div>
+          <div class="inline-form">
+            <input type="text" id="scoutInput" placeholder="Riot ID (e.g. Ammitz#Maar)" />
+            <select id="scoutPlatform">
+              <option value="euw1">EUW</option><option value="eun1">EUNE</option>
+              <option value="na1">NA</option><option value="kr">KR</option>
+              <option value="jp1">JP</option><option value="br1">BR</option>
+              <option value="la1">LAN</option><option value="la2">LAS</option>
+              <option value="oc1">OCE</option><option value="tr1">TR</option>
+              <option value="ru">RU</option>
+            </select>
+            <button id="scoutBtn" class="btn-primary">Scout</button>
+          </div>
         </div>
         <div id="scoutResult"></div>
       </section>
 
-      <!-- Champions tab -->
+      <!-- ---------- CHAMPIONS ---------- -->
       <section class="tab-panel" id="tab-champions">
-        <div class="content-header">
-          <h1>Champions</h1>
-          <p class="content-sub">Win rates from the collected matchup dataset.</p>
+        <div id="championBrowse">
+          <div class="page-head">
+            <div>
+              <h1 class="page-title">Champions</h1>
+              <p class="page-sub">Win rates across every champion in the analysed sample.</p>
+            </div>
+            <div class="inline-form">
+              <input type="text" id="championFilter" placeholder="Filter champions…" />
+            </div>
+          </div>
+          <div id="championList" class="champ-grid"></div>
         </div>
-        <div class="search-row">
-          <input type="text" id="championFilter" placeholder="Filter champions..." />
-        </div>
-        <div id="championList"></div>
         <div id="championDetail" hidden></div>
       </section>
 
-      <!-- Rankings tab -->
+      <!-- ---------- LEADERBOARD ---------- -->
       <section class="tab-panel" id="tab-rankings">
-        <div class="content-header">
-          <h1>Rankings</h1>
-          <p class="content-sub">Top of the solo queue ladder.</p>
-        </div>
-        <div class="search-row">
-          <select id="rankTier">
-            <option value="challenger">Challenger</option>
-            <option value="grandmaster">Grandmaster</option>
-            <option value="master">Master</option>
-          </select>
-          <select id="rankPlatform">
-            <option value="euw1">EUW</option>
-            <option value="eun1">EUNE</option>
-            <option value="na1">NA</option>
-            <option value="kr">KR</option>
-            <option value="jp1">JP</option>
-            <option value="br1">BR</option>
-            <option value="la1">LAN</option>
-            <option value="la2">LAS</option>
-            <option value="oc1">OCE</option>
-            <option value="tr1">TR</option>
-            <option value="ru">RU</option>
-          </select>
-          <button id="rankLoadBtn">Load</button>
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Leaderboard</h1>
+            <p class="page-sub">The top of the solo queue ladder.</p>
+          </div>
+          <div class="inline-form">
+            <select id="rankTier">
+              <option value="challenger">Challenger</option>
+              <option value="grandmaster">Grandmaster</option>
+              <option value="master">Master</option>
+            </select>
+            <select id="rankPlatform">
+              <option value="euw1">EUW</option><option value="eun1">EUNE</option>
+              <option value="na1">NA</option><option value="kr">KR</option>
+              <option value="jp1">JP</option><option value="br1">BR</option>
+              <option value="la1">LAN</option><option value="la2">LAS</option>
+              <option value="oc1">OCE</option><option value="tr1">TR</option>
+              <option value="ru">RU</option>
+            </select>
+            <button id="rankLoadBtn" class="btn-primary">Load</button>
+          </div>
         </div>
         <div id="rankingsList"><div class="empty-state">Pick a tier and hit Load.</div></div>
       </section>
 
-      <!-- Settings tab -->
+      <!-- ---------- SETTINGS ---------- -->
       <section class="tab-panel" id="tab-settings">
-        <div class="content-header">
-          <h1>Settings</h1>
-          <p class="content-sub">App behavior and preferences.</p>
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Settings</h1>
+            <p class="page-sub">Behaviour, automation and appearance.</p>
+          </div>
         </div>
 
-        <section class="card">
-          <div class="setting-row">
-            <div>
-              <div class="setting-title">Launch on Windows startup</div>
-              <div class="setting-desc">Open RuneAI automatically when you log in.</div>
+        <div class="settings-grid">
+          <div class="panel">
+            <div class="panel-head"><h2>Automation</h2></div>
+            <div class="setting-row">
+              <div><div class="setting-title">Auto-accept queue</div><div class="setting-desc">Accepts the match-found prompt for you.</div></div>
+              <label class="switch"><input type="checkbox" id="setAutoAccept" /></label>
             </div>
-            <label class="switch"><input type="checkbox" id="setLaunchOnStartup" /></label>
-          </div>
-          <div class="setting-row">
-            <div>
-              <div class="setting-title">Minimize to tray</div>
-              <div class="setting-desc">Closing the window hides it instead of quitting.</div>
+            <div class="setting-row">
+              <div><div class="setting-title">Auto item set</div><div class="setting-desc">Writes a recommended build into the in-game shop.</div></div>
+              <label class="switch"><input type="checkbox" id="setAutoItemSet" /></label>
             </div>
-            <label class="switch"><input type="checkbox" id="setMinimizeToTray" /></label>
-          </div>
-          <div class="setting-row">
-            <div>
-              <div class="setting-title">Notify when runes are applied</div>
-              <div class="setting-desc">Show a desktop notification during champ select.</div>
+            <div class="setting-row">
+              <div><div class="setting-title">In-game build overlay</div><div class="setting-desc">Live buy advice over the game, adapting to enemy comp and gold.</div></div>
+              <div class="setting-actions">
+                <button id="previewOverlayBtn" class="btn-ghost">Preview</button>
+                <label class="switch"><input type="checkbox" id="setShowOverlay" /></label>
+              </div>
             </div>
-            <label class="switch"><input type="checkbox" id="setNotifyOnApply" /></label>
           </div>
-          <div class="setting-row">
-            <div>
-              <div class="setting-title">Auto-accept queue</div>
-              <div class="setting-desc">Accepts the match-found prompt for you.</div>
-            </div>
-            <label class="switch"><input type="checkbox" id="setAutoAccept" /></label>
-          </div>
-          <div class="setting-row">
-            <div>
-              <div class="setting-title">Auto item set</div>
-              <div class="setting-desc">Writes a recommended build into your in-game shop.</div>
-            </div>
-            <label class="switch"><input type="checkbox" id="setAutoItemSet" /></label>
-          </div>
-        </section>
 
-        <section class="card">
-          <div class="setting-row">
-            <div>
-              <div class="setting-title">Default region</div>
-              <div class="setting-desc">Pre-selected in Search and Live Scout.</div>
+          <div class="panel">
+            <div class="panel-head"><h2>Application</h2></div>
+            <div class="setting-row">
+              <div><div class="setting-title">Launch on startup</div><div class="setting-desc">Open RuneAI when you log in.</div></div>
+              <label class="switch"><input type="checkbox" id="setLaunchOnStartup" /></label>
             </div>
-            <select id="setDefaultRegion">
-              <option value="euw1">EUW</option>
-              <option value="eun1">EUNE</option>
-              <option value="na1">NA</option>
-              <option value="kr">KR</option>
-              <option value="jp1">JP</option>
-              <option value="br1">BR</option>
-              <option value="la1">LAN</option>
-              <option value="la2">LAS</option>
-              <option value="oc1">OCE</option>
-              <option value="tr1">TR</option>
-              <option value="ru">RU</option>
-            </select>
-          </div>
-          <div class="setting-row">
-            <div>
-              <div class="setting-title">Theme</div>
-              <div class="setting-desc">Appearance of the app.</div>
+            <div class="setting-row">
+              <div><div class="setting-title">Minimize to tray</div><div class="setting-desc">Closing hides the window instead of quitting.</div></div>
+              <label class="switch"><input type="checkbox" id="setMinimizeToTray" /></label>
             </div>
-            <select id="setTheme">
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
-              <option value="hextech">Hextech</option>
-            </select>
+            <div class="setting-row">
+              <div><div class="setting-title">Desktop notifications</div><div class="setting-desc">Notify when runes are applied.</div></div>
+              <label class="switch"><input type="checkbox" id="setNotifyOnApply" /></label>
+            </div>
           </div>
-        </section>
+
+          <div class="panel">
+            <div class="panel-head"><h2>Preferences</h2></div>
+            <div class="setting-row">
+              <div><div class="setting-title">Default region</div><div class="setting-desc">Pre-selected across the app.</div></div>
+              <select id="setDefaultRegion">
+                <option value="euw1">EUW</option><option value="eun1">EUNE</option>
+                <option value="na1">NA</option><option value="kr">KR</option>
+                <option value="jp1">JP</option><option value="br1">BR</option>
+                <option value="la1">LAN</option><option value="la2">LAS</option>
+                <option value="oc1">OCE</option><option value="tr1">TR</option>
+                <option value="ru">RU</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <div><div class="setting-title">Theme</div><div class="setting-desc">Appearance of the app.</div></div>
+              <select id="setTheme">
+                <option value="hextech">Hextech</option>
+                <option value="dark">Midnight</option>
+                <option value="light">Light</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
   </div>

@@ -15,5 +15,6 @@ contextBridge.exposeInMainWorld('runeAI', {
   setAutoApply: (value) => ipcRenderer.invoke('set-auto-apply', value),
   refreshDataset: () => ipcRenderer.invoke('refresh-dataset'),
   getSettings: () => ipcRenderer.invoke('get-settings'),
+  previewOverlay: () => ipcRenderer.invoke('preview-overlay'),
   setSetting: (key, value) => ipcRenderer.invoke('set-setting', key, value),
 });

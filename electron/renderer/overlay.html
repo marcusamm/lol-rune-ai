@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>RuneAI Overlay</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="overlay.css" />
+</head>
+<body>
+  <div class="overlay-panel" id="panel">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+
+    <header class="ov-head">
+      <span class="ov-mark">R</span>
+      <span class="ov-title">Build Advisor</span>
+      <span class="ov-gold" id="gold">—</span>
+    </header>
+
+    <div class="ov-champ" id="champLine">Waiting for game…</div>
+
+    <div class="ov-threat" id="threat"></div>
+
+    <section class="ov-section">
+      <h4>Buy now</h4>
+      <div id="buyNow" class="ov-items"><div class="ov-empty">—</div></div>
+    </section>
+
+    <section class="ov-section">
+      <h4>Save for</h4>
+      <div id="nextGoals" class="ov-items"><div class="ov-empty">—</div></div>
+    </section>
+  </div>
+
+  <script src="overlayRenderer.js"></script>
+</body>
+</html>
