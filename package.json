@@ -1,0 +1,29 @@
+{
+  "name": "lol-rune-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prototype: matchup-aware automatic rune selection for League of Legends",
+  "main": "electron/main.js",
+  "scripts": {
+    "diagnose": "node src/diagnose.js",
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.runeai.app",
+    "productName": "RuneAI",
+    "files": ["electron/**/*", "src/**/*", "assets/**/*", "package.json"],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.png"
+    }
+  }
+}

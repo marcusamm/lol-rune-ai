@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>RuneAI</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="dot" id="clientDot"></span>
+      <h1>RuneAI</h1>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="autoApplyToggle" checked />
+      <span>Auto-apply</span>
+    </label>
+  </header>
+
+  <section class="card" id="statusCard">
+    <div class="row">
+      <span class="label">Client</span>
+      <span id="clientText">Checking...</span>
+    </div>
+    <div class="row">
+      <span class="label">Dataset</span>
+      <span id="datasetText">Loading...</span>
+      <button id="refreshBtn">Refresh</button>
+    </div>
+  </section>
+
+  <section class="card" id="champSelectCard" hidden>
+    <h2>Champ Select</h2>
+    <div class="row"><span class="label">You</span><span id="youText">-</span></div>
+    <div class="row"><span class="label">Enemies</span><span id="enemiesText">-</span></div>
+    <div class="row"><span class="label">Phase</span><span id="phaseText">-</span></div>
+  </section>
+
+  <section class="card" id="recommendationCard" hidden>
+    <h2>Recommendation</h2>
+    <p id="recText"></p>
+    <p class="applied" id="appliedText" hidden>Runes applied ✓</p>
+  </section>
+
+  <section class="log">
+    <h2>Log</h2>
+    <div id="logList"></div>
+  </section>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

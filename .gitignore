@@ -1,0 +1,7 @@
+node_modules/
+diagnostics/
+.env
+*.db
+dist/
+build.log
+data/seenMatches.json
