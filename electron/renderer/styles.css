@@ -21,6 +21,114 @@ body {
   padding: 16px;
 }
 
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 8px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.search-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.search-row input {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.search-row select {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+}
+.search-row button {
+  margin-left: 0;
+}
+
+.player-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.player-card h3 { margin: 0 0 6px; font-size: 14px; }
+.player-card .sub { color: var(--muted); font-size: 11px; margin-bottom: 8px; }
+
+.match-row, .stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+.match-row.win { color: var(--good); }
+.match-row.loss { color: var(--bad); }
+
+.scout-team {
+  margin-bottom: 10px;
+}
+.scout-team h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 10px 0 4px;
+}
+.scout-player {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+.scout-player .rank { color: var(--muted); }
+
+.champion-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+.champion-row .wr-good { color: var(--good); }
+.champion-row .wr-bad { color: var(--bad); }
+
+.empty-state {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 20px 0;
+  text-align: center;
+}
+
 header {
   display: flex;
   align-items: center;

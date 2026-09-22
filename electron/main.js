@@ -1,15 +1,32 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } = require('electron');
 const path = require('path');
+const { fork } = require('child_process');
 const { MatchupWatcher } = require('../src/watcher');
+const { loadEnv } = require('../src/env');
+
+loadEnv(); // pulls RIOT_API_KEY from repo-root .env for the backend child process
 
 let mainWindow = null;
 let tray = null;
 let watcher = null;
+let backendProcess = null;
+
+function startBackend() {
+  backendProcess = fork(path.join(__dirname, '..', 'backend', 'server.js'), {
+    env: process.env,
+    silent: true,
+  });
+  backendProcess.stdout?.on('data', (d) => console.log(`[backend] ${d.toString().trim()}`));
+  backendProcess.stderr?.on('data', (d) => console.error(`[backend] ${d.toString().trim()}`));
+  backendProcess.on('exit', (code) => {
+    if (code !== 0 && code !== null) console.error(`[backend] exited with code ${code}`);
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 420,
-    height: 600,
+    width: 480,
+    height: 720,
     resizable: false,
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),
     webPreferences: {
@@ -81,6 +98,7 @@ ipcMain.handle('refresh-dataset', async () => {
 });
 
 app.whenReady().then(() => {
+  startBackend();
   createWindow();
   createTray();
   startWatcher();
@@ -88,4 +106,9 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   // Tray keeps the app alive - don't quit on window close.
+});
+
+app.on('before-quit', () => {
+  app.isQuitting = true;
+  if (backendProcess) backendProcess.kill();
 });
