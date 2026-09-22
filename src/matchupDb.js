@@ -85,4 +85,45 @@ function recommendPage(data, champion, opponent, position) {
   return null;
 }
 
-module.exports = { recommendPage, guessLaneOpponent, load };
+// Top items for a champion+role by confidence-weighted win rate. Filters
+// out consumables/wards/trinkets so the set is an actual build path, not
+// "every item that was in someone's inventory at the end".
+const NON_BUILD_ITEMS = new Set([
+  2003, 2031, 2033, 2055, 2138, 2139, 2140, 2150, 2151, 2152, 3340, 3363, 3364, 3330,
+  2010, 2019, 2052, 1515, 1516,
+]);
+
+function recommendItems(data, champion, position, limit = 6) {
+  const items = (data.items || {})[`${champion}|${position}`];
+  if (!items) return [];
+
+  return Object.entries(items)
+    .filter(([id, s]) => !NON_BUILD_ITEMS.has(Number(id)) && s.games >= 3)
+    .map(([id, s]) => ({
+      itemId: Number(id),
+      games: s.games,
+      wins: s.wins,
+      winRate: s.wins / s.games,
+      confidence: score(s.games, s.wins),
+    }))
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, limit);
+}
+
+function recommendSpells(data, champion, position) {
+  const spells = (data.spells || {})[`${champion}|${position}`];
+  if (!spells) return null;
+
+  const best = Object.entries(spells)
+    .map(([combo, s]) => ({
+      spellIds: combo.split('-').map(Number),
+      games: s.games,
+      winRate: s.wins / s.games,
+      confidence: score(s.games, s.wins),
+    }))
+    .sort((a, b) => b.confidence - a.confidence)[0];
+
+  return best || null;
+}
+
+module.exports = { recommendPage, recommendItems, recommendSpells, guessLaneOpponent, load };

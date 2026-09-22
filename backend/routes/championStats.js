@@ -1,38 +1,9 @@
 const express = require('express');
-const https = require('https');
+const { getDataset } = require('../dataset');
 
 const router = express.Router();
 
-const DATASET_URL = 'https://raw.githubusercontent.com/marcusamm/lol-rune-ai/main/data/matchups.json';
-const REFRESH_MS = 60 * 60 * 1000; // dataset is only refreshed periodically by the collector anyway
 
-let cache = null;
-let cachedAt = 0;
-
-function fetchJson(url) {
-  return new Promise((resolve, reject) => {
-    https
-      .get(url, (res) => {
-        let data = '';
-        res.on('data', (c) => (data += c));
-        res.on('end', () => {
-          try {
-            resolve(JSON.parse(data));
-          } catch (err) {
-            reject(err);
-          }
-        });
-      })
-      .on('error', reject);
-  });
-}
-
-async function getDataset() {
-  if (cache && Date.now() - cachedAt < REFRESH_MS) return cache;
-  cache = await fetchJson(DATASET_URL);
-  cachedAt = Date.now();
-  return cache;
-}
 
 function totalGames(pagesObj) {
   return Object.values(pagesObj || {}).reduce((sum, p) => sum + p.games, 0);

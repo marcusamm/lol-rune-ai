@@ -6,8 +6,10 @@
 const EventEmitter = require('events');
 const https = require('https');
 const { getLcuCredentials, request } = require('./lcu');
-const { recommendPage, guessLaneOpponent } = require('./matchupDb');
+const { recommendPage, recommendItems, guessLaneOpponent } = require('./matchupDb');
 const { applyRunePage } = require('./runes');
+const { applyItemSet } = require('./itemSets');
+const { acceptIfPending } = require('./readyCheck');
 const { loadDataset } = require('./dataSource');
 
 function httpsGetJson(url) {
@@ -42,10 +44,12 @@ async function loadChampionIdToName() {
 }
 
 class MatchupWatcher extends EventEmitter {
-  constructor({ userDataDir, autoApply = true, pollMs = 2000 } = {}) {
+  constructor({ userDataDir, autoApply = true, autoAccept = false, autoItemSet = true, pollMs = 2000 } = {}) {
     super();
     this.userDataDir = userDataDir;
     this.autoApply = autoApply;
+    this.autoAccept = autoAccept;
+    this.autoItemSet = autoItemSet;
     this.pollMs = pollMs;
     this.idToName = null;
     this.dataset = null;
@@ -81,6 +85,14 @@ class MatchupWatcher extends EventEmitter {
     this.autoApply = value;
   }
 
+  setAutoAccept(value) {
+    this.autoAccept = value;
+  }
+
+  setAutoItemSet(value) {
+    this.autoItemSet = value;
+  }
+
   championName(id) {
     return this.idToName[id] || null;
   }
@@ -89,6 +101,14 @@ class MatchupWatcher extends EventEmitter {
     const creds = getLcuCredentials();
     this.emit('client-status', Boolean(creds));
     if (!creds) return;
+
+    if (this.autoAccept) {
+      try {
+        if (await acceptIfPending(creds)) this.emit('queue-accepted');
+      } catch {
+        // ready-check endpoint 404s outside of queue; not worth surfacing
+      }
+    }
 
     const { status, body } = await request(creds, 'GET', '/lol-champ-select/v1/session');
     if (status !== 200) {
@@ -137,6 +157,23 @@ class MatchupWatcher extends EventEmitter {
     if (this.autoApply) {
       await applyRunePage(creds, rec);
       this.emit('applied', { myChamp, enemyChamp, position, rec });
+    }
+
+    if (this.autoItemSet) {
+      try {
+        const items = recommendItems(this.dataset, myChamp, position);
+        if (items.length) {
+          const title = await applyItemSet(creds, {
+            championName: myChamp,
+            championId: me.championId,
+            position,
+            itemIds: items.map((i) => i.itemId),
+          });
+          this.emit('item-set-applied', { title, items });
+        }
+      } catch (err) {
+        this.emit('error', new Error(`Item set failed: ${err.message}`));
+      }
     }
 
     this.handledSessionId = sessionId;

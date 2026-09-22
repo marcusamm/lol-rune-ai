@@ -94,12 +94,46 @@ function recordResult(bucket, matchupKey, page, won) {
   if (won) pages[page.key].wins += 1;
 }
 
+// Individual item popularity per champion+role rather than whole-build
+// combos: at our sample size exact 6-item combos almost never repeat,
+// but per-item win rates stay meaningful.
+function recordItems(bucket, key, participant, won) {
+  if (!bucket[key]) bucket[key] = {};
+  const items = bucket[key];
+  for (let i = 0; i <= 5; i++) {
+    const itemId = participant[`item${i}`];
+    if (!itemId) continue;
+    if (!items[itemId]) items[itemId] = { games: 0, wins: 0 };
+    items[itemId].games += 1;
+    if (won) items[itemId].wins += 1;
+  }
+}
+
+function recordSpells(bucket, key, participant, won) {
+  if (!bucket[key]) bucket[key] = {};
+  const combo = [participant.summoner1Id, participant.summoner2Id].sort((a, b) => a - b).join('-');
+  if (!bucket[key][combo]) bucket[key][combo] = { games: 0, wins: 0 };
+  bucket[key][combo].games += 1;
+  if (won) bucket[key][combo].wins += 1;
+}
+
 async function main() {
   const { platform, summoners, matchesPerSummoner } = parseArgs();
   const region = PLATFORM_TO_REGION[platform];
   if (!region) throw new Error(`Unknown platform ${platform}`);
 
-  const data = loadJson(DATA_FILE, { byMatchup: {}, overall: {}, matchesProcessed: 0 });
+  const data = loadJson(DATA_FILE, {
+    byMatchup: {},
+    overall: {},
+    items: {},
+    spells: {},
+    bans: {},
+    matchesProcessed: 0,
+  });
+  // Older datasets predate the item/spell/ban buckets.
+  data.items = data.items || {};
+  data.spells = data.spells || {};
+  data.bans = data.bans || {};
   const seenMatches = new Set(loadJson(SEEN_MATCHES_FILE, []));
 
   console.log(`Fetching Challenger + Grandmaster puuids on ${platform}...`);
@@ -118,64 +152,80 @@ async function main() {
   console.log(`Using ${puuids.length} summoners.`);
 
   const matchIdSet = new Set();
-  for (const [i, puuid] of puuids.entries()) {
-    let body;
-    try {
-      ({ body } = await regionalGet(
-        region,
-        `/lol/match/v5/matches/by-puuid/${puuid}/ids?queue=420&count=${matchesPerSummoner}`
-      ));
-    } catch (err) {
-      console.log(`[${i + 1}/${puuids.length}] skip (request failed after retries: ${err.message})`);
-      continue;
+  const BATCH = 15; // the limiter allows ~18/s, so batches of 15 stay comfortably inside it
+  for (let i = 0; i < puuids.length; i += BATCH) {
+    const slice = puuids.slice(i, i + BATCH);
+    const results = await Promise.all(
+      slice.map((puuid) =>
+        regionalGet(
+          region,
+          `/lol/match/v5/matches/by-puuid/${puuid}/ids?queue=420&count=${matchesPerSummoner}`
+        ).catch((err) => ({ error: err.message }))
+      )
+    );
+    for (const r of results) {
+      if (Array.isArray(r.body)) for (const id of r.body) matchIdSet.add(id);
     }
-    if (Array.isArray(body)) {
-      for (const id of body) matchIdSet.add(id);
-    }
-    console.log(`[${i + 1}/${puuids.length}] collected match ids, total unique so far: ${matchIdSet.size}`);
+    console.log(
+      `[${Math.min(i + BATCH, puuids.length)}/${puuids.length}] collected match ids, total unique: ${matchIdSet.size}`
+    );
   }
 
   const matchIds = [...matchIdSet].filter((id) => !seenMatches.has(id));
   console.log(`${matchIds.length} new matches to process (${matchIdSet.size - matchIds.length} already seen).`);
 
-  for (const [i, matchId] of matchIds.entries()) {
-    let status, body;
-    try {
-      ({ status, body } = await regionalGet(region, `/lol/match/v5/matches/${matchId}`));
-    } catch (err) {
-      console.log(`  skip ${matchId} (request failed after retries: ${err.message})`);
-      continue;
+  for (let i = 0; i < matchIds.length; i += BATCH) {
+    const slice = matchIds.slice(i, i + BATCH);
+    const results = await Promise.all(
+      slice.map((id) =>
+        regionalGet(region, `/lol/match/v5/matches/${id}`)
+          .then((r) => ({ id, ...r }))
+          .catch((err) => ({ id, error: err.message }))
+      )
+    );
+
+    for (const { id, status, body, error } of results) {
+      if (error || status !== 200 || !body?.info) continue;
+
+      const participants = body.info.participants;
+
+      // Ban counts feed ban rate; team bans live outside participants.
+      for (const team of body.info.teams || []) {
+        for (const ban of team.bans || []) {
+          if (!ban.championId || ban.championId < 0) continue;
+          data.bans[ban.championId] = (data.bans[ban.championId] || 0) + 1;
+        }
+      }
+
+      for (const p of participants) {
+        if (!p.teamPosition) continue; // ARAM / arena / no role data
+        const overallKey = `${p.championName}|${p.teamPosition}`;
+
+        recordItems(data.items, overallKey, p, p.win);
+        recordSpells(data.spells, overallKey, p, p.win);
+
+        const page = runePage(p);
+        if (!page) continue;
+
+        const opponent = participants.find(
+          (o) => o.teamId !== p.teamId && o.teamPosition === p.teamPosition
+        );
+        if (!opponent) continue;
+
+        const matchupKey = `${p.championName}|${opponent.championName}|${p.teamPosition}`;
+        recordResult(data.byMatchup, matchupKey, page, p.win);
+        recordResult(data.overall, overallKey, page, p.win);
+      }
+
+      seenMatches.add(id);
+      data.matchesProcessed += 1;
     }
-    if (status !== 200 || !body?.info) {
-      console.log(`  skip ${matchId} (status ${status})`);
-      continue;
-    }
 
-    const participants = body.info.participants;
-    for (const p of participants) {
-      if (!p.teamPosition) continue; // ARAM / arena / no role data
-      const page = runePage(p);
-      if (!page) continue;
-
-      const opponent = participants.find(
-        (o) => o.teamId !== p.teamId && o.teamPosition === p.teamPosition
-      );
-      if (!opponent) continue;
-
-      const matchupKey = `${p.championName}|${opponent.championName}|${p.teamPosition}`;
-      const overallKey = `${p.championName}|${p.teamPosition}`;
-      recordResult(data.byMatchup, matchupKey, page, p.win);
-      recordResult(data.overall, overallKey, page, p.win);
-    }
-
-    seenMatches.add(matchId);
-    data.matchesProcessed += 1;
-
-    if ((i + 1) % 10 === 0 || i === matchIds.length - 1) {
-      saveJson(DATA_FILE, data);
-      saveJson(SEEN_MATCHES_FILE, [...seenMatches]);
-      console.log(`  [${i + 1}/${matchIds.length}] processed, ${data.matchesProcessed} total matches saved.`);
-    }
+    saveJson(DATA_FILE, data);
+    saveJson(SEEN_MATCHES_FILE, [...seenMatches]);
+    console.log(
+      `  [${Math.min(i + BATCH, matchIds.length)}/${matchIds.length}] processed, ${data.matchesProcessed} total matches saved.`
+    );
   }
 
   saveJson(DATA_FILE, data);
