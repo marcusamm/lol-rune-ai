@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const { BACKEND_URL } = require('./config');
 
 contextBridge.exposeInMainWorld('runeAI', {
+  backendUrl: BACKEND_URL,
   onStatus: (cb) => ipcRenderer.on('status', (_e, msg) => cb(msg)),
   onDatasetLoaded: (cb) => ipcRenderer.on('dataset-loaded', (_e, info) => cb(info)),
   onClientStatus: (cb) => ipcRenderer.on('client-status', (_e, connected) => cb(connected)),

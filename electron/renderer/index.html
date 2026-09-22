@@ -11,41 +11,107 @@
       <span class="dot" id="clientDot"></span>
       <h1>RuneAI</h1>
     </div>
-    <label class="switch">
-      <input type="checkbox" id="autoApplyToggle" checked />
-      <span>Auto-apply</span>
-    </label>
   </header>
 
-  <section class="card" id="statusCard">
-    <div class="row">
-      <span class="label">Client</span>
-      <span id="clientText">Checking...</span>
-    </div>
-    <div class="row">
-      <span class="label">Dataset</span>
-      <span id="datasetText">Loading...</span>
-      <button id="refreshBtn">Refresh</button>
-    </div>
-  </section>
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="runes">Auto Runes</button>
+    <button class="tab-btn" data-tab="search">Search</button>
+    <button class="tab-btn" data-tab="scout">Live Scout</button>
+    <button class="tab-btn" data-tab="champions">Champions</button>
+  </nav>
 
-  <section class="card" id="champSelectCard" hidden>
-    <h2>Champ Select</h2>
-    <div class="row"><span class="label">You</span><span id="youText">-</span></div>
-    <div class="row"><span class="label">Enemies</span><span id="enemiesText">-</span></div>
-    <div class="row"><span class="label">Phase</span><span id="phaseText">-</span></div>
-  </section>
+  <main>
+    <!-- Auto Runes tab -->
+    <section class="tab-panel active" id="tab-runes">
+      <section class="card" id="statusCard">
+        <div class="row">
+          <span class="label">Client</span>
+          <span id="clientText">Checking...</span>
+        </div>
+        <div class="row">
+          <span class="label">Dataset</span>
+          <span id="datasetText">Loading...</span>
+          <button id="refreshBtn">Refresh</button>
+        </div>
+        <div class="row">
+          <label class="switch">
+            <input type="checkbox" id="autoApplyToggle" checked />
+            <span>Auto-apply runes</span>
+          </label>
+        </div>
+      </section>
 
-  <section class="card" id="recommendationCard" hidden>
-    <h2>Recommendation</h2>
-    <p id="recText"></p>
-    <p class="applied" id="appliedText" hidden>Runes applied ✓</p>
-  </section>
+      <section class="card" id="champSelectCard" hidden>
+        <h2>Champ Select</h2>
+        <div class="row"><span class="label">You</span><span id="youText">-</span></div>
+        <div class="row"><span class="label">Enemies</span><span id="enemiesText">-</span></div>
+        <div class="row"><span class="label">Phase</span><span id="phaseText">-</span></div>
+      </section>
 
-  <section class="log">
-    <h2>Log</h2>
-    <div id="logList"></div>
-  </section>
+      <section class="card" id="recommendationCard" hidden>
+        <h2>Recommendation</h2>
+        <p id="recText"></p>
+        <p class="applied" id="appliedText" hidden>Runes applied ✓</p>
+      </section>
+
+      <section class="log">
+        <h2>Log</h2>
+        <div id="logList"></div>
+      </section>
+    </section>
+
+    <!-- Search tab -->
+    <section class="tab-panel" id="tab-search">
+      <div class="search-row">
+        <input type="text" id="searchInput" placeholder="Riot ID (e.g. Ammitz#Maar)" />
+        <select id="searchPlatform">
+          <option value="euw1">EUW</option>
+          <option value="eun1">EUNE</option>
+          <option value="na1">NA</option>
+          <option value="kr">KR</option>
+          <option value="jp1">JP</option>
+          <option value="br1">BR</option>
+          <option value="la1">LAN</option>
+          <option value="la2">LAS</option>
+          <option value="oc1">OCE</option>
+          <option value="tr1">TR</option>
+          <option value="ru">RU</option>
+        </select>
+        <button id="searchBtn">Search</button>
+      </div>
+      <div id="searchResult"></div>
+    </section>
+
+    <!-- Live Scout tab -->
+    <section class="tab-panel" id="tab-scout">
+      <div class="search-row">
+        <input type="text" id="scoutInput" placeholder="Riot ID (e.g. Ammitz#Maar)" />
+        <select id="scoutPlatform">
+          <option value="euw1">EUW</option>
+          <option value="eun1">EUNE</option>
+          <option value="na1">NA</option>
+          <option value="kr">KR</option>
+          <option value="jp1">JP</option>
+          <option value="br1">BR</option>
+          <option value="la1">LAN</option>
+          <option value="la2">LAS</option>
+          <option value="oc1">OCE</option>
+          <option value="tr1">TR</option>
+          <option value="ru">RU</option>
+        </select>
+        <button id="scoutBtn">Scout</button>
+      </div>
+      <div id="scoutResult"></div>
+    </section>
+
+    <!-- Champions tab -->
+    <section class="tab-panel" id="tab-champions">
+      <div class="search-row">
+        <input type="text" id="championFilter" placeholder="Filter champions..." />
+      </div>
+      <div id="championList"></div>
+    </section>
+  </main>
 
   <script src="renderer.js"></script>
 </body>
